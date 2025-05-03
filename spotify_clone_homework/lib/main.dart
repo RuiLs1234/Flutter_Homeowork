@@ -26,6 +26,7 @@ class _SpotifyHomePageState extends State<SpotifyHomePage> {
   final AudioPlayer _player = AudioPlayer();
   bool _isPlaying = false;
   String _nowPlayingTitle = 'Nothing Playing';
+  String _searchQuery = '';
 
   final List<Map<String, String>> albums = [
     {
@@ -53,6 +54,13 @@ class _SpotifyHomePageState extends State<SpotifyHomePage> {
       'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
     },
   ];
+
+  List<Map<String, String>> get _filteredAlbums {
+    if (_searchQuery.isEmpty) return albums;
+    return albums
+        .where((album) => album['title']!.toLowerCase().contains(_searchQuery.toLowerCase()))
+        .toList();
+  }
 
   void _togglePlayback() async {
     if (_player.playing) {
@@ -94,13 +102,36 @@ class _SpotifyHomePageState extends State<SpotifyHomePage> {
           Icon(Icons.settings),
           SizedBox(width: 16),
         ],
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(48),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: TextField(
+              onChanged: (value) => setState(() => _searchQuery = value),
+              style: TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Search (e.g. workout)',
+                hintStyle: TextStyle(color: Colors.white60),
+                filled: true,
+                fillColor: Colors.grey[800],
+                prefixIcon: Icon(Icons.search, color: Colors.white),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
       body: Column(
         children: [
           Expanded(
-            child: GridView.builder(
+            child: _filteredAlbums.isEmpty
+                ? Center(child: Text('No results found.', style: TextStyle(color: Colors.white70)))
+                : GridView.builder(
               padding: EdgeInsets.all(16),
-              itemCount: albums.length,
+              itemCount: _filteredAlbums.length,
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 childAspectRatio: 3,
@@ -108,7 +139,7 @@ class _SpotifyHomePageState extends State<SpotifyHomePage> {
                 mainAxisSpacing: 16,
               ),
               itemBuilder: (context, index) {
-                final album = albums[index];
+                final album = _filteredAlbums[index];
                 return GestureDetector(
                   onTap: () => _playAlbum(album),
                   child: Container(
