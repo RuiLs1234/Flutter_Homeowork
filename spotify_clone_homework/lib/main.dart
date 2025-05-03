@@ -27,6 +27,7 @@ class _SpotifyHomePageState extends State<SpotifyHomePage> {
   bool _isPlaying = false;
   String _nowPlayingTitle = 'Nothing Playing';
   String _searchQuery = '';
+  int _selectedIndex = 0;
 
   final List<Map<String, String>> albums = [
     {
@@ -55,9 +56,15 @@ class _SpotifyHomePageState extends State<SpotifyHomePage> {
     },
   ];
 
+  final List<String> favorites = [];
+
   List<Map<String, String>> get _filteredAlbums {
-    if (_searchQuery.isEmpty) return albums;
-    return albums
+    List<Map<String, String>> base = _selectedIndex == 2
+        ? albums.where((album) => favorites.contains(album['title'])).toList()
+        : albums;
+
+    if (_searchQuery.isEmpty) return base;
+    return base
         .where((album) => album['title']!.toLowerCase().contains(_searchQuery.toLowerCase()))
         .toList();
   }
@@ -81,6 +88,16 @@ class _SpotifyHomePageState extends State<SpotifyHomePage> {
     });
   }
 
+  void _toggleFavorite(String title) {
+    setState(() {
+      if (favorites.contains(title)) {
+        favorites.remove(title);
+      } else {
+        favorites.add(title);
+      }
+    });
+  }
+
   @override
   void dispose() {
     _player.dispose();
@@ -91,18 +108,19 @@ class _SpotifyHomePageState extends State<SpotifyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Good Evening'),
+        title: Text(_selectedIndex == 2 ? 'Your Library' : 'Good Evening'),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          Icon(Icons.notifications_none),
-          SizedBox(width: 16),
-          Icon(Icons.history),
-          SizedBox(width: 16),
+          if (_selectedIndex != 2) Icon(Icons.notifications_none),
+          if (_selectedIndex != 2) SizedBox(width: 16),
+          if (_selectedIndex != 2) Icon(Icons.history),
+          if (_selectedIndex != 2) SizedBox(width: 16),
           Icon(Icons.settings),
           SizedBox(width: 16),
         ],
-        bottom: PreferredSize(
+        bottom: _selectedIndex == 1
+            ? PreferredSize(
           preferredSize: Size.fromHeight(48),
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -122,13 +140,21 @@ class _SpotifyHomePageState extends State<SpotifyHomePage> {
               ),
             ),
           ),
-        ),
+        )
+            : null,
       ),
       body: Column(
         children: [
           Expanded(
             child: _filteredAlbums.isEmpty
-                ? Center(child: Text('No results found.', style: TextStyle(color: Colors.white70)))
+                ? Center(
+              child: Text(
+                _selectedIndex == 2
+                    ? 'No favorites yet.'
+                    : 'No results found.',
+                style: TextStyle(color: Colors.white70),
+              ),
+            )
                 : GridView.builder(
               padding: EdgeInsets.all(16),
               itemCount: _filteredAlbums.length,
@@ -140,6 +166,7 @@ class _SpotifyHomePageState extends State<SpotifyHomePage> {
               ),
               itemBuilder: (context, index) {
                 final album = _filteredAlbums[index];
+                final isFav = favorites.contains(album['title']);
                 return GestureDetector(
                   onTap: () => _playAlbum(album),
                   child: Container(
@@ -155,12 +182,27 @@ class _SpotifyHomePageState extends State<SpotifyHomePage> {
                           child: Text(album['cover']!, style: TextStyle(fontSize: 16)),
                         ),
                         SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            album['title']!,
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                            overflow: TextOverflow.ellipsis,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                album['title']!,
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            isFav ? Icons.favorite : Icons.favorite_border,
+                            color: isFav ? Colors.red : Colors.white,
+                          ),
+                          onPressed: () {
+                            _toggleFavorite(album['title']!);
+                          },
                         ),
                       ],
                     ),
@@ -184,10 +226,7 @@ class _SpotifyHomePageState extends State<SpotifyHomePage> {
                   ),
                 ),
                 IconButton(
-                  icon: Icon(
-                    _isPlaying ? Icons.pause : Icons.play_arrow,
-                    color: Colors.white,
-                  ),
+                  icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow, color: Colors.white),
                   onPressed: _togglePlayback,
                 ),
               ],
@@ -196,6 +235,11 @@ class _SpotifyHomePageState extends State<SpotifyHomePage> {
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: (index) => setState(() {
+          _selectedIndex = index;
+          _searchQuery = '';
+        }),
         backgroundColor: Colors.black,
         selectedItemColor: Colors.greenAccent[400],
         unselectedItemColor: Colors.white70,
